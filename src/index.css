@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+}
+
+:root {
+  --primary: #FF6B00;
+  --secondary: #2D2D2D;
+  --accent: #FFD700;
+  --background: #FFFFFF;
+  --foreground: #121212;
+}
+
+body {
+  @apply bg-white text-[#121212] font-sans antialiased;
+}
+
+.dark {
+  --background: #121212;
+  --foreground: #FFFFFF;
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 bg-[#FF6B00] text-white rounded-xl font-medium transition-all hover:scale-105 active:scale-95 shadow-lg shadow-orange-500/20 active:shadow-none;
+  }
+  .glass {
+    @apply bg-white/70 backdrop-blur-md border border-white/20;
+  }
+}

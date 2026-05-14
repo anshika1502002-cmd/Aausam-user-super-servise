@@ -1,0 +1,143 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "driver", "vendor", "admin"] },
+        "walletBalance": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Ride": {
+      "title": "Ride",
+      "description": "Ride booking details",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "driverId": { "type": "string" },
+        "pickup": {
+          "type": "object",
+          "properties": {
+            "address": { "type": "string" },
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "destination": {
+          "type": "object",
+          "properties": {
+            "address": { "type": "string" },
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "status": { "type": "string", "enum": ["pending", "accepted", "ongoing", "completed", "cancelled"] },
+        "type": { "type": "string", "enum": ["bike", "auto", "mini", "sedan", "suv"] },
+        "fare": { "type": "number" },
+        "otp": { "type": "string" },
+        "distance": { "type": "number" },
+        "duration": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Food or Grocery order",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "vendorId": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "preparing", "out_for_delivery", "delivered", "cancelled"] },
+        "type": { "type": "string", "enum": ["food", "grocery"] },
+        "deliveryAddress": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Product for grocery or food item",
+      "type": "object",
+      "properties": {
+        "vendorId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "image": { "type": "string" },
+        "category": { "type": "string" },
+        "stock": { "type": "number" }
+      }
+    },
+    "Service": {
+      "title": "Service",
+      "description": "Home service booking",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "providerId": { "type": "string" },
+        "serviceType": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "in_progress", "completed", "cancelled"] },
+        "scheduledAt": { "type": "string", "format": "date-time" },
+        "address": { "type": "object" },
+        "cost": { "type": "number" }
+      }
+    },
+    "Driver": {
+      "title": "Driver",
+      "description": "Driver dynamic data",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "isOnline": { "type": "boolean" },
+        "vehicleType": { "type": "string" },
+        "currentRideId": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/rides/{rideId}": {
+      "schema": "Ride",
+      "description": "Ride bookings"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Food and grocery orders"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Inventory products"
+    },
+    "/services/{serviceId}": {
+      "schema": "Service",
+      "description": "Home service bookings"
+    },
+    "/drivers/{driverId}": {
+      "schema": "Driver",
+      "description": "Real-time driver tracking"
+    }
+  }
+}

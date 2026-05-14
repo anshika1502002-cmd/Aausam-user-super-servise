@@ -1,0 +1,6 @@
+{
+  "name": "Aausam User Service",
+  "description": "Premium multi-service super app platform combining ride-hailing, food delivery, quick commerce, and home services.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["Ride Booking", "Food Delivery", "Quick Commerce", "Home Services"]
+}

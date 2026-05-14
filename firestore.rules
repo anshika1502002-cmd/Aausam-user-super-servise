@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Primitives
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidUser(data) {
+      return data.uid == request.auth.uid &&
+             data.role in ['user', 'driver', 'vendor', 'admin'] &&
+             data.email is string &&
+             data.keys().hasAll(['uid', 'email', 'role', 'walletBalance', 'createdAt', 'updatedAt']) &&
+             data.keys().size() <= 10;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'phoneNumber', 'updatedAt']) &&
+        incoming().updatedAt == request.time
+      );
+    }
+
+    match /rides/{rideId} {
+      function isValidRide(data) {
+        return data.userId == request.auth.uid &&
+               data.status == 'pending' &&
+               data.fare is number;
+      }
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.driverId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(rideId) && isValidRide(incoming()) && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && (
+        (isOwner(resource.data.userId) && incoming().diff(existing()).affectedKeys().hasOnly(['status']) && incoming().status == 'cancelled') ||
+        (resource.data.driverId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+      );
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'vendor';
+    }
+
+    match /admins/{adminId} {
+      allow read: if isSignedIn() && request.auth.uid == adminId;
+    }
+  }
+}
