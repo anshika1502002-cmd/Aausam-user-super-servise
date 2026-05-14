@@ -1,14 +1,56 @@
 import React from 'react';
-import { motion } from 'motion/react';
-import { Car, MapPin, DollarSign, List, Bell, Power, Star } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Car, MapPin, DollarSign, List, Bell, Power, Star, User, Navigation } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../redux/store';
+import { handleFirestoreError, OperationType } from '../../utils/firebaseErrors';
 
 export default function DriverDashboard() {
+  const { profile } = useSelector((state: RootState) => state.user);
   const [isOnline, setIsOnline] = React.useState(false);
+  const [requests, setRequests] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    if (!isOnline) {
+      setRequests([]);
+      return;
+    }
+
+    const q = query(collection(db, "rides"), where("status", "==", "pending"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setRequests(docs);
+      if (docs.length > 0) {
+        toast('New ride request available!', { icon: '🔔' });
+      }
+    }, (err) => {
+      console.error("Snapshot error:", err);
+    });
+
+    return () => unsubscribe();
+  }, [isOnline]);
 
   const toggleStatus = () => {
     setIsOnline(!isOnline);
     toast.success(isOnline ? 'You are now offline' : 'You are now online');
+  };
+
+  const acceptRide = async (rideId: string) => {
+    if (!profile) return;
+    try {
+      const rideRef = doc(db, "rides", rideId);
+      await updateDoc(rideRef, {
+        status: "accepted",
+        driverId: profile.uid,
+        updatedAt: serverTimestamp(),
+      });
+      toast.success('Ride accepted! Start navigating to pickup.');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, "rides");
+    }
   };
 
   return (
@@ -54,14 +96,59 @@ export default function DriverDashboard() {
             <h2 className="text-xl font-bold text-slate-900">Ride Requests</h2>
             <Bell size={20} className="text-[#FF6B00] animate-bounce" />
           </div>
-          <div className="p-8 text-center py-20">
+          <div className="p-0 text-center py-8">
             {isOnline ? (
-              <div className="flex flex-col items-center">
-                <div className="w-16 h-16 bg-orange-100 text-[#FF6B00] rounded-full flex items-center justify-center mb-6 animate-ping">
-                  <MapPin size={32} />
-                </div>
-                <p className="text-lg font-bold text-slate-900">Searching for rides...</p>
-                <p className="text-slate-400 text-sm mt-2">New requests will appear here once found.</p>
+              <div className="space-y-0">
+                {requests.length > 0 ? (
+                  <div className="divide-y divide-slate-50">
+                    <AnimatePresence>
+                      {requests.map((request) => (
+                        <motion.div 
+                          key={request.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 20 }}
+                          className="p-6 hover:bg-slate-50 transition-all flex items-center justify-between group"
+                        >
+                          <div className="flex items-center gap-4 text-left">
+                            <div className="w-12 h-12 bg-orange-100 text-[#FF6B00] rounded-2xl flex items-center justify-center">
+                              <User size={24} />
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-900">{request.userName || 'Customer'}</p>
+                              <p className="text-xs text-slate-400 font-medium truncate max-w-[150px]">
+                                {request.pickup.address || 'Location Hidden'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right mr-4">
+                              <p className="font-bold text-slate-900">₹{request.fare}</p>
+                              <p className="text-[10px] font-bold text-green-500 uppercase">Cash</p>
+                            </div>
+                            <button 
+                              onClick={() => acceptRide(request.id)}
+                              className="px-6 py-3 bg-[#FF6B00] text-white rounded-xl text-sm font-bold shadow-lg shadow-orange-500/20 hover:scale-105 active:scale-95 transition-all"
+                            >
+                              Accept
+                            </button>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center py-12">
+                    <div className="relative">
+                      <div className="w-16 h-16 bg-orange-100 text-[#FF6B00] rounded-full flex items-center justify-center mb-6 animate-pulse">
+                        <MapPin size={32} />
+                      </div>
+                      <div className="absolute top-0 left-0 w-16 h-16 bg-orange-100 rounded-full animate-ping opacity-25"></div>
+                    </div>
+                    <p className="text-lg font-bold text-slate-900">Searching for rides...</p>
+                    <p className="text-slate-400 text-sm mt-2">New requests will appear here once found.</p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-center opacity-50">

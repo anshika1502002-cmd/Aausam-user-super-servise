@@ -17,15 +17,21 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../config/firebase";
 
+import { handleFirestoreError, OperationType } from "../utils/firebaseErrors";
+
 // Ride Services
 export const createRideRequest = async (rideData: any) => {
-  const rideRef = await addDoc(collection(db, "rides"), {
-    ...rideData,
-    status: "pending",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-  return rideRef.id;
+  try {
+    const rideRef = await addDoc(collection(db, "rides"), {
+      ...rideData,
+      status: "pending",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return rideRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, "rides");
+  }
 };
 
 export const subscribeToRide = (rideId: string, callback: (data: any) => void) => {

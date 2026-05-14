@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Bike, Car, ShoppingBag, Utensils, Zap, Package, ArrowRight, Star } from 'lucide-react';
 
+import { useSelector } from 'react-redux';
+import { RootState } from '../redux/store';
+
 const CATEGORIES = [
   { id: 'rides', name: 'Rides', icon: Bike, color: 'bg-blue-500', link: '/user/rides', desc: 'Bike, Auto, Cab' },
   { id: 'food', name: 'Food', icon: Utensils, color: 'bg-orange-500', link: '/user/food', desc: 'Hungry? Order now' },
@@ -12,6 +15,8 @@ const CATEGORIES = [
 ];
 
 export default function LandingPage() {
+  const { profile } = useSelector((state: RootState) => state.user);
+
   return (
     <div className="relative overflow-hidden bg-white">
       {/* Hero Section */}
@@ -24,7 +29,7 @@ export default function LandingPage() {
               transition={{ duration: 0.6 }}
             >
               <span className="inline-flex items-center gap-2 px-3 py-1 bg-orange-50 text-[#FF6B00] rounded-full text-xs font-bold uppercase tracking-wider mb-6">
-                <Star size={14} fill="currentColor" /> All Services in One Place
+                <Star size={14} fill="currentColor" /> {profile ? `Welcome back, ${profile.displayName}` : 'All Services in One Place'}
               </span>
               <h1 className="text-6xl md:text-7xl font-bold tracking-tight text-slate-900 leading-[1.1] mb-8">
                 Your Life, <br />

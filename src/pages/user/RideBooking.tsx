@@ -3,8 +3,10 @@ import { useJsApiLoader, GoogleMap, Marker, DirectionsRenderer, Autocomplete } f
 import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Search, Navigation, Bike, Car, Clock, CreditCard } from 'lucide-react';
+import { MapPin, Search, Navigation, Bike, Car, Clock, CreditCard, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { createRideRequest } from '../../services/firebaseService';
+import { useNavigate } from 'react-router-dom';
 
 const mapContainerStyle = {
   width: '100%',
@@ -24,6 +26,8 @@ const RIDE_TYPES = [
 ];
 
 export default function RideBooking() {
+  const navigate = useNavigate();
+  const { profile } = useSelector((state: RootState) => state.user);
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.VITE_GOOGLE_MAPS_API_KEY || '',
@@ -35,17 +39,101 @@ export default function RideBooking() {
   const [directions, setDirections] = React.useState<any>(null);
   const [selectedType, setSelectedType] = React.useState(RIDE_TYPES[0]);
   const [isSearching, setIsSearching] = React.useState(false);
+  const [isBooking, setIsBooking] = React.useState(false);
+
+  const pickupAutocomplete = React.useRef<google.maps.places.Autocomplete | null>(null);
+  const destAutocomplete = React.useRef<google.maps.places.Autocomplete | null>(null);
+
+  const onPickupLoad = (autocomplete: google.maps.places.Autocomplete) => {
+    pickupAutocomplete.current = autocomplete;
+  };
+
+  const onDestLoad = (autocomplete: google.maps.places.Autocomplete) => {
+    destAutocomplete.current = autocomplete;
+  };
+
+  const onPickupChanged = () => {
+    if (pickupAutocomplete.current) {
+      const place = pickupAutocomplete.current.getPlace();
+      if (place.geometry && place.geometry.location) {
+        setPickup({
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng(),
+          address: place.formatted_address,
+        });
+      }
+    }
+  };
+
+  const onDestChanged = () => {
+    if (destAutocomplete.current) {
+      const place = destAutocomplete.current.getPlace();
+      if (place.geometry && place.geometry.location) {
+        setDestination({
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng(),
+          address: place.formatted_address,
+        });
+      }
+    }
+  };
 
   const calculateRoute = async () => {
-    if (!pickup || !destination) return;
+    if (!pickup || !destination) {
+      toast.error('Select both pickup and destination');
+      return;
+    }
     
-    // In a real app, we'd use the DirectionsService
-    // For demo, we'll simulate a route
     setIsSearching(true);
-    setTimeout(() => {
+    const directionsService = new google.maps.DirectionsService();
+    try {
+      const result = await directionsService.route({
+        origin: pickup,
+        destination: destination,
+        travelMode: google.maps.TravelMode.DRIVING,
+      });
+      setDirections(result);
+      toast.success('Route found!');
+    } catch (err) {
+      toast.error('Could not calculate route');
+    } finally {
       setIsSearching(false);
-      toast.success('Route calculated!');
-    }, 1500);
+    }
+  };
+
+  const handleBooking = async () => {
+    if (!profile) {
+      toast.error('Please login to continue');
+      navigate('/login');
+      return;
+    }
+
+    if (!pickup || !destination) {
+      toast.error('Please select pickup and destination');
+      return;
+    }
+
+    setIsBooking(true);
+    try {
+      const rideId = await createRideRequest({
+        userId: profile.uid,
+        pickup,
+        destination,
+        type: selectedType.id,
+        fare: selectedType.baseFare + 150, // This could be more dynamic
+        userName: profile.displayName,
+      });
+
+      if (rideId) {
+        toast.success('Ride Booked Successfully!');
+        // We could redirect to a tracking page here
+        // navigate(`/user/ride/${rideId}`);
+      }
+    } catch (error) {
+      // Error handled by service
+    } finally {
+      setIsBooking(false);
+    }
   };
 
   if (!isLoaded) return <div>Loading...</div>;
@@ -60,7 +148,7 @@ export default function RideBooking() {
           <div className="space-y-4 mb-8">
             <div className="relative">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-blue-500 rounded-full"></div>
-              <Autocomplete onPlaceChanged={() => setPickup({ lat: 12.98, lng: 77.6 })}>
+              <Autocomplete onLoad={onPickupLoad} onPlaceChanged={onPickupChanged}>
                 <input 
                   type="text" 
                   placeholder="Enter pickup point" 
@@ -71,7 +159,7 @@ export default function RideBooking() {
             
             <div className="relative">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-[#FF6B00] rounded-full"></div>
-              <Autocomplete onPlaceChanged={() => setDestination({ lat: 12.99, lng: 77.62 })}>
+              <Autocomplete onLoad={onDestLoad} onPlaceChanged={onDestChanged}>
                 <input 
                   type="text" 
                   placeholder="Enter destination" 
@@ -119,8 +207,16 @@ export default function RideBooking() {
             ))}
           </div>
 
-          <button className="w-full py-5 bg-slate-900 text-white rounded-[24px] font-bold mt-8 hover:bg-slate-800 transition-all flex items-center justify-center gap-3">
-            Confirm Booking with <CreditCard size={20} />
+          <button 
+            onClick={handleBooking}
+            disabled={isBooking || !pickup || !destination}
+            className="w-full py-5 bg-slate-900 text-white disabled:bg-slate-300 rounded-[24px] font-bold mt-8 hover:bg-slate-800 transition-all flex items-center justify-center gap-3"
+          >
+            {isBooking ? (
+              <Loader2 className="animate-spin" size={20} />
+            ) : (
+              <>Confirm Booking with <CreditCard size={20} /></>
+            )}
           </button>
         </div>
       </div>
